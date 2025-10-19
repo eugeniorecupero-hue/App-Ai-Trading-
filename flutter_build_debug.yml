@@ -1,4 +1,4 @@
-name: Build Flutter Debug APK (cached)
+name: Build Flutter Debug APK (pin Flutter)
 
 on:
   push:
@@ -8,21 +8,16 @@ on:
 jobs:
   build-debug:
     runs-on: ubuntu-latest
-    env:
-      JAVA_DISTRIBUTION: temurin
-      JAVA_VERSION: '17'
-      ANDROID_BUILD_TOOLS: '34.0.0'
-      ANDROID_PLATFORM: 'android-34'
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java ${{ env.JAVA_VERSION }}
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
-          distribution: ${{ env.JAVA_DISTRIBUTION }}
-          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          java-version: "17"
           cache: gradle
 
       - name: Set up Android SDK
@@ -30,14 +25,18 @@ jobs:
 
       - name: Install Android build tools & accept licenses
         run: |
-          sdkmanager --install "platform-tools" "platforms;${{ env.ANDROID_PLATFORM }}" "build-tools;${{ env.ANDROID_BUILD_TOOLS }}"
+          sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
           yes | sdkmanager --licenses
 
-      - name: Set up Flutter
+      # 👇 Pinna Flutter a una versione stabile PRE-3.35 (compatibile con Kotlin vecchio)
+      - name: Set up Flutter (3.24.4)
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: "3.24.4"
           cache: true
+
+      - name: Flutter doctor
+        run: flutter doctor -v
 
       - name: Cache pub dependencies
         uses: actions/cache@v4
@@ -49,11 +48,11 @@ jobs:
           restore-keys: |
             pub-${{ runner.os }}-
 
-      - name: Flutter pub get
-        run: flutter pub get
-
-      - name: Precache Android
-        run: flutter precache --android
+      - name: Flutter clean & pub get
+        run: |
+          flutter clean
+          flutter pub get
+          flutter precache --android
 
       - name: Build Debug APK
         run: flutter build apk --debug --verbose
